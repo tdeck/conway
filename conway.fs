@@ -1,3 +1,5 @@
+( Conway's Game of Life in gforth )
+
 variable grid-rows
 variable grid-cols
 
@@ -25,9 +27,9 @@ variable 'next-grid
 : alive? ( r c -- b )
     2dup rc>index -rot
     ( bounds checking first )
-    dup 0 < swap grid-rows @ >= or
-    swap 
     dup 0 < swap grid-cols @ >= or
+    swap 
+    dup 0 < swap grid-rows @ >= or
     or if
         drop false
     else
@@ -59,7 +61,9 @@ variable 'next-grid
         3 = 
     then ;
 
-: set-next-state ( r c b -- )   -rot rc>index 'next-grid @ + c! ;
+: set-state ( r c b grid -- )   2swap rc>index + c! ;
+: set-this-state ( r c b -- )   'this-grid @ set-state ;
+: set-next-state ( r c b -- )   'next-grid @ set-state ;
 
 : compute-new-grid ( -- )
     grid-rows @ 0 do
@@ -72,15 +76,23 @@ variable 'next-grid
 
 ( *** I/O *** )
 
-: init-game ( -- )  form swap 2 - swap setup-grids ;
+: init-game ( -- )  form 2 / swap 2 - swap setup-grids ;
 
 hex
-: show-living ( -- )   25a3 xemit ;
-: show-dead ( -- )   25a1 xemit ;
+: CSI ( -- )   1b emit ." [" ;
+: normal ( -- )   CSI ." 0m" ;
+: bright ( -- )   CSI ." 1m" ;
+: white ( -- )   CSI ." 37m" ;
+: green ( -- )   CSI ." 32m" ;
+: inverse ( -- )   CSI ." 7m" ;
+
+: show-living ( -- )    2b24 xemit space ;
+: show-dead ( -- )   25cc xemit space ;
 decimal
 
 : show-grid ( -- )
     page
+    bright inverse
     grid-rows @ 0 do
         grid-cols @ 0 do
             j i alive? if show-living else show-dead then
@@ -88,24 +100,28 @@ decimal
         cr
     loop ;
 
-: glider ( -- ) ( TODO - not the cleanest way to write this)
+: glider ( r c -- ) ( TODO - not the cleanest way to write this)
     ( row 0 )
-    0 0 false set-next-state
-    0 1 true set-next-state
-    0 2 false set-next-state
+    2dup false set-this-state
+    2dup 1+ true set-this-state
+    2dup 2 + false set-this-state
     ( row 1 )
-    1 0 false set-next-state
-    1 1 false set-next-state
-    1 2 true set-next-state
+    row-below
+    2dup false set-this-state
+    2dup 1+ false set-this-state
+    2dup 2 + true set-this-state
     ( row 2 )
-    2 0 true set-next-state
-    2 1 true set-next-state
-    2 2 true set-next-state 
-    swap-grids ;
+    row-below
+    2dup true set-this-state
+    2dup 1 + true set-this-state
+    2 + true set-this-state ;
+: gliders 0 do 0 i 5 * glider loop ;
 
-100 constant frame-delay
+250 constant frame-delay
 
 : simulate ( -- )   begin show-grid step frame-delay ms 0 until ;
 
-init-game glider simulate
+init-game 
+form 10 / gliders drop
+simulate
 
