@@ -1,39 +1,42 @@
 ( Conway's Game of Life in gforth )
 
-variable grid-rows
-variable grid-cols
+250 constant frame-delay
+-28 constant SIGTERM
+
+10 value grid-rows
+10 value grid-cols
 
 ( *** Game Logic *** )
 
-: grid-size ( -- )   grid-rows @ grid-cols @ * ;
+: grid-size ( -- )   grid-rows grid-cols * ;
 
 : allot-grid ( -- ) ( allots a grid and fills it with zeros )
     here grid-size dup allot erase ;
 
 ( Pointers to grids, stored with continguous rows )
-variable 'this-grid
-variable 'next-grid
+0 value 'this-grid
+0 value 'next-grid
 
 ( Create two grids that we can swap between )
 : setup-grids ( rows cols -- )
-    grid-cols ! grid-rows !
-    here 'this-grid ! allot-grid
-    here 'next-grid ! allot-grid ;
+    to grid-cols to grid-rows
+    here to 'this-grid allot-grid
+    here to 'next-grid allot-grid ;
 
-: swap-grids ( -- )   'this-grid @ 'next-grid @ 'this-grid ! 'next-grid ! ;
+: swap-grids ( -- )   'this-grid 'next-grid to 'this-grid to 'next-grid ;
 
-: rc>index ( r c -- i ) swap grid-cols @ * + ;
+: rc>index ( r c -- i ) swap grid-cols * + ;
 
 : alive? ( r c -- b )
     2dup rc>index -rot
     ( bounds checking first )
-    dup 0 < swap grid-cols @ >= or
+    dup 0 < swap grid-cols >= or
     swap 
-    dup 0 < swap grid-rows @ >= or
+    dup 0 < swap grid-rows >= or
     or if
         drop false
     else
-        'this-grid @ + C@ 
+        'this-grid + C@ 
     then ;    
 
 : alive# ( r c -- 0/1 )   alive? 1 and ;
@@ -62,12 +65,12 @@ variable 'next-grid
     then ;
 
 : set-state ( r c b grid -- )   2swap rc>index + c! ;
-: set-this-state ( r c b -- )   'this-grid @ set-state ;
-: set-next-state ( r c b -- )   'next-grid @ set-state ;
+: set-this-state ( r c b -- )   'this-grid set-state ;
+: set-next-state ( r c b -- )   'next-grid set-state ;
 
 : compute-new-grid ( -- )
-    grid-rows @ 0 do
-        grid-cols @ 0 do
+    grid-rows 0 do
+        grid-cols 0 do
             j i 2dup will-live? set-next-state
         loop
     loop ;
@@ -86,15 +89,17 @@ hex
 : green ( -- )   CSI ." 32m" ;
 : inverse ( -- )   CSI ." 7m" ;
 
+: hide-cursor ( -- )   CSI ." ?25l" ;
+
 : show-living ( -- )    2b24 xemit space ;
 : show-dead ( -- )   25cc xemit space ;
 decimal
 
 : show-grid ( -- )
-    page
-    bright inverse
-    grid-rows @ 0 do
-        grid-cols @ 0 do
+    0 0 at-xy
+    bright white inverse
+    grid-rows 0 do
+        grid-cols 0 do
             j i alive? if show-living else show-dead then
         loop
         cr
@@ -115,11 +120,66 @@ decimal
     2dup true set-this-state
     2dup 1 + true set-this-state
     2 + true set-this-state ;
-: gliders 0 do 0 i 5 * glider loop ;
 
-250 constant frame-delay
+: gliders ( n -- )   0 do 0 i 5 * glider loop ;
 
-: simulate ( -- )   begin show-grid step frame-delay ms 0 until ;
-: game ( -- )   init-game form 10 / gliders drop ['] simulate catch drop normal cr bye ;
+: light-square   ( r c -- ) 
+    2dup
+    2 * swap at-xy green 
+    alive? if show-living else show-dead then ;
+
+: at-last-line ( -- )   0 form drop at-xy ;
+
+: confine-coords ( -- ) 
+    0 max grid-cols 1- min ( column )
+    swap
+    0 max grid-rows 1- min ( row )
+    swap ;
+
+: populate ( -- )   
+    at-last-line ." Use h,j,k,l to move, SPACE to set, ENTER when done."
+    hide-cursor
+    0 0
+    begin
+        confine-coords
+        show-grid
+        2dup light-square
+        key
+            dup 104 = if ( 'h' )
+                -rot 1- rot
+            else dup 106 = if ( 'j' )
+                -rot row-below rot
+            else dup 107 = if ( 'k' )
+                -rot row-above rot
+            else dup 108 = if ( 'l' )
+                -rot 1+ rot
+            else dup 32 = if ( space )
+                -rot 2dup 2dup alive? 0= set-this-state rot
+            then then then then then
+        13 =
+    until 
+    normal
+    at-last-line form swap drop 0 do space loop ;
+
+
+: simulate ( -- )   
+    at-last-line ." Hit ^C to exit."
+    begin 
+        show-grid 
+        step 
+        frame-delay ms 
+    0 until ;
+
+: game ( -- )   
+    page
+    init-game 
+    ['] populate catch dup 0= if
+        ['] simulate catch 
+    then 
+    normal dup SIGTERM = if
+        cr bye
+    else 
+        throw
+    then ;
 
 game
