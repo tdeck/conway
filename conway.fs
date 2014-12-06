@@ -120,8 +120,6 @@ decimal
 250 constant frame-delay
 
 : simulate ( -- )   begin show-grid step frame-delay ms 0 until ;
+: game ( -- )   init-game form 10 / gliders drop ['] simulate catch drop normal cr bye ;
 
-init-game 
-form 10 / gliders drop
-simulate
-
+game
