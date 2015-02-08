@@ -1,4 +1,6 @@
 ( Conway's Game of Life in gforth )
+\ Released under the MIT license
+\ See http://troy.mit-license.org for details
 
 250 constant frame-delay
 -28 constant SIGTERM
@@ -31,13 +33,13 @@
     2dup rc>index -rot
     ( bounds checking first )
     dup 0 < swap grid-cols >= or
-    swap 
+    swap
     dup 0 < swap grid-rows >= or
     or if
         drop false
     else
-        'this-grid + C@ 
-    then ;    
+        'this-grid + C@
+    then ;
 
 : alive# ( r c -- 0/1 )   alive? 1 and ;
 
@@ -53,7 +55,7 @@
     2dup alive# negate -rot
     ( upper row ) 2dup row-above count-l-r-neighbors -rot
     ( center row ) 2dup count-l-r-neighbors -rot
-    ( lower row) row-below count-l-r-neighbors 
+    ( lower row) row-below count-l-r-neighbors
     + + + ;
 
 : will-live? ( r c -- b )
@@ -61,7 +63,7 @@
     if ( original cell is alive )
         dup 2 = swap 3 = or
     else ( original cell is dead )
-        3 = 
+        3 =
     then ;
 
 : set-state ( r c b grid -- )   2swap rc>index + c! ;
@@ -123,20 +125,20 @@ decimal
 
 : gliders ( n -- )   0 do 0 i 5 * glider loop ;
 
-: light-square   ( r c -- ) 
+: light-square   ( r c -- )
     2dup
-    2 * swap at-xy green 
+    2 * swap at-xy green
     alive? if show-living else show-dead then ;
 
 : at-last-line ( -- )   0 form drop at-xy ;
 
-: confine-coords ( -- ) 
+: confine-coords ( -- )
     0 max grid-cols 1- min ( column )
     swap
     0 max grid-rows 1- min ( row )
     swap ;
 
-: populate ( -- )   
+: populate ( -- )
     at-last-line ." Use h,j,k,l to move, SPACE to set, ENTER when done."
     hide-cursor
     0 0
@@ -157,28 +159,28 @@ decimal
                 -rot 2dup 2dup alive? 0= set-this-state rot
             then then then then then
         13 =
-    until 
+    until
     normal
     at-last-line form swap drop 0 do space loop ;
 
 
-: simulate ( -- )   
+: simulate ( -- )
     at-last-line ." Hit ^C to exit."
-    begin 
-        show-grid 
-        step 
-        frame-delay ms 
+    begin
+        show-grid
+        step
+        frame-delay ms
     0 until ;
 
-: game ( -- )   
+: game ( -- )
     page
-    init-game 
+    init-game
     ['] populate catch dup 0= if
-        ['] simulate catch 
-    then 
+        ['] simulate catch
+    then
     normal dup SIGTERM = if
         cr bye
-    else 
+    else
         throw
     then ;
 

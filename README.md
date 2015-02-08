@@ -12,3 +12,5 @@ I like cellular automata, and I thought this would be a good way to learn a bit 
 What is FORTH?
 --------------
 [FORTH](https://en.wikipedia.org/wiki/Forth_%28programming_language%29) is a rather unusual stack-based low-level programming language.
+
+This code is released under the terms of the [MIT License](http://troy.mit-license.org).
